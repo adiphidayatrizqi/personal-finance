@@ -148,6 +148,7 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
             <Label>Initial Balance {isIDR ? "(Rp)" : `(${currency})`}</Label>
             <NumberInputID value={initialBalance} onChange={setInitialBalance} decimals={!isIDR} placeholder={isIDR ? "0" : "0,00"} />
           </div>
+          <div className="grid gap-1.5"><Label>Icon</Label>
             <div className="flex flex-wrap gap-2">
               {ICONS.map((i) => (
                 <button key={i} type="button" onClick={() => setIcon(i)} className={"h-10 w-10 rounded-xl border text-lg " + (icon === i ? "border-primary bg-primary/10" : "border-border")}>{i}</button>
