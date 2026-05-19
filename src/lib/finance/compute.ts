@@ -1,8 +1,10 @@
 import type { FinanceState, Wallet, Transaction, Holding, PriceSource } from "./types";
+import { formatIDR, formatIDRSigned, formatNumberID } from "./format";
 
-export const fmtIDR = (n: number) => "Rp" + Math.round(Math.abs(n)).toLocaleString("id-ID") + (n < 0 ? "" : "");
-export const fmtIDRSigned = (n: number) => (n < 0 ? "-" : "") + "Rp" + Math.round(Math.abs(n)).toLocaleString("id-ID");
-export const fmtNum = (n: number, max = 6) => n.toLocaleString("en-US", { maximumFractionDigits: max });
+// Backwards-compatible aliases — display layer now goes through ./format
+export const fmtIDR = (n: number) => formatIDR(n);
+export const fmtIDRSigned = (n: number) => formatIDRSigned(n);
+export const fmtNum = (n: number, max = 6) => formatNumberID(n, max);
 export const fmtPct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 
 export function priceOf(symbol: string, prices: PriceSource[]): number | undefined {
