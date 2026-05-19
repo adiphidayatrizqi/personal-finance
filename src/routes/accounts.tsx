@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Plus, Archive, Trash2, Pencil, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinance } from "@/lib/finance/store";
 import { uid } from "@/lib/finance/seed";
-import { walletBalance, walletValueIDR, fmtIDR, fmtNum } from "@/lib/finance/compute";
+import { walletBalance, walletValueIDR } from "@/lib/finance/compute";
+import { formatIDR, formatNumberID } from "@/lib/finance/format";
+import { NumberInputID } from "@/components/number-input";
 import type { Wallet, WalletType } from "@/lib/finance/types";
 import { toast } from "sonner";
 
