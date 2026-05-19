@@ -72,14 +72,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Savvr — Personal Finance Dashboard" },
+      { name: "description", content: "Track net worth, cash, investments, and goals in one premium personal finance dashboard." },
+      { name: "author", content: "Savvr" },
+      { property: "og:title", content: "Savvr — Personal Finance Dashboard" },
+      { property: "og:description", content: "Your money, assets, and portfolio in one place." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
