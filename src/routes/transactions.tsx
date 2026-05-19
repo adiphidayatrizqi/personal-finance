@@ -132,7 +132,7 @@ function Page() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{d.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{d.sub} · {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                  <p className="text-xs text-muted-foreground truncate">{d.sub} · {formatDateTimeSmartID(t.date)}</p>
                 </div>
                 <div className={"num text-sm font-semibold " + (d.neutral ? "text-foreground" : d.positive ? "text-success" : "text-destructive")}>
                   {d.neutral ? "" : d.positive ? "+" : "-"}{fmtIDR(d.amount)}
