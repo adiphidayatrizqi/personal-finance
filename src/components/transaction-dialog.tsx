@@ -9,6 +9,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFinance } from "@/lib/finance/store";
 import type { Transaction, TxType } from "@/lib/finance/types";
 import { uid } from "@/lib/finance/seed";
+import { NumberInputID } from "@/components/number-input";
+import { nowDateTimeLocalInput, toDateTimeLocalInput, fromDateTimeLocalInput } from "@/lib/finance/format";
 import { toast } from "sonner";
 
 interface Props {
@@ -26,46 +28,53 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
   const setIsOpen = (v: boolean) => { if (isControlled) onOpenChange?.(v); else setOpen(v); };
 
   const [type, setType] = useState<TxType>(editing?.type ?? "expense");
-  const [amount, setAmount] = useState<string>("");
+  const [amount, setAmount] = useState<number>(0);
   const [walletId, setWalletId] = useState<string>("");
   const [fromWalletId, setFromWalletId] = useState<string>("");
   const [toWalletId, setToWalletId] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [holdingId, setHoldingId] = useState<string>("");
-  const [quantity, setQuantity] = useState<string>("");
-  const [pricePerUnit, setPricePerUnit] = useState<string>("");
-  const [fee, setFee] = useState<string>("");
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [quantity, setQuantity] = useState<number>(0);
+  const [pricePerUnit, setPricePerUnit] = useState<number>(0);
+  const [fee, setFee] = useState<number>(0);
+  const [dateTime, setDateTime] = useState<string>(nowDateTimeLocalInput());
   const [notes, setNotes] = useState<string>("");
 
   useEffect(() => {
     if (!isOpen) return;
     if (editing) {
       setType(editing.type);
-      setDate(editing.date.slice(0, 10));
+      setDateTime(toDateTimeLocalInput(editing.date));
       setNotes(editing.notes ?? "");
       if (editing.type === "income" || editing.type === "expense") {
-        setAmount(String(editing.amount));
+        setAmount(editing.amount);
         setWalletId(editing.walletId);
         setCategoryId(editing.categoryId);
       } else if (editing.type === "transfer") {
-        setAmount(String(editing.amount));
+        setAmount(editing.amount);
         setFromWalletId(editing.fromWalletId);
         setToWalletId(editing.toWalletId);
       } else if (editing.type === "buy") {
-        setAmount(String(editing.amountPaid));
+        setAmount(editing.amountPaid);
         setFromWalletId(editing.fromWalletId);
         setHoldingId(editing.holdingId);
-        setQuantity(String(editing.quantity));
-        setPricePerUnit(String(editing.pricePerUnit));
-        setFee(editing.fee ? String(editing.fee) : "");
+        setQuantity(editing.quantity);
+        setPricePerUnit(editing.pricePerUnit);
+        setFee(editing.fee ?? 0);
       } else if (editing.type === "sell") {
-        setQuantity(String(editing.quantity));
+        setQuantity(editing.quantity);
         setHoldingId(editing.holdingId);
         setToWalletId(editing.toWalletId);
-        setPricePerUnit(String(editing.pricePerUnit));
-        setFee(editing.fee ? String(editing.fee) : "");
+        setPricePerUnit(editing.pricePerUnit);
+        setFee(editing.fee ?? 0);
       }
+    } else {
+      // Reset for a new entry — default to current local datetime including seconds.
+      setType("expense");
+      setDateTime(nowDateTimeLocalInput());
+      setAmount(0); setQuantity(0); setPricePerUnit(0); setFee(0);
+      setWalletId(""); setFromWalletId(""); setToWalletId(""); setCategoryId(""); setHoldingId("");
+      setNotes("");
     }
   }, [isOpen, editing]);
 
@@ -76,34 +85,37 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
   const incCats = cats.filter((c) => c.kind === "income");
 
   const submit = () => {
-    const base = { id: editing?.id ?? uid(), date: new Date(date).toISOString(), notes: notes || undefined, createdAt: editing?.createdAt ?? new Date().toISOString() };
+    const nowIso = new Date().toISOString();
+    const base = {
+      id: editing?.id ?? uid(),
+      date: fromDateTimeLocalInput(dateTime),
+      notes: notes || undefined,
+      createdAt: editing?.createdAt ?? nowIso,
+      updatedAt: nowIso,
+    };
     let tx: Transaction | null = null;
-    const n = (v: string) => Number(v) || 0;
     if (type === "income") {
       if (!walletId || !categoryId || !amount) return toast.error("Fill all required fields");
-      tx = { ...base, type, amount: n(amount), walletId, categoryId };
+      tx = { ...base, type, amount, walletId, categoryId };
     } else if (type === "expense") {
       if (!walletId || !categoryId || !amount) return toast.error("Fill all required fields");
-      tx = { ...base, type, amount: n(amount), walletId, categoryId };
+      tx = { ...base, type, amount, walletId, categoryId };
     } else if (type === "transfer") {
       if (!fromWalletId || !toWalletId || !amount) return toast.error("Fill all required fields");
       if (fromWalletId === toWalletId) return toast.error("Source and destination must differ");
-      tx = { ...base, type, amount: n(amount), fromWalletId, toWalletId };
+      tx = { ...base, type, amount, fromWalletId, toWalletId };
     } else if (type === "buy") {
       if (!fromWalletId || !holdingId || !quantity || !pricePerUnit) return toast.error("Fill all required fields");
-      const amt = amount ? n(amount) : n(quantity) * n(pricePerUnit);
-      tx = { ...base, type, amountPaid: amt, fromWalletId, holdingId, quantity: n(quantity), pricePerUnit: n(pricePerUnit), fee: fee ? n(fee) : undefined };
+      const amt = amount || quantity * pricePerUnit;
+      tx = { ...base, type, amountPaid: amt, fromWalletId, holdingId, quantity, pricePerUnit, fee: fee || undefined };
     } else if (type === "sell") {
       if (!toWalletId || !holdingId || !quantity || !pricePerUnit) return toast.error("Fill all required fields");
-      tx = { ...base, type, quantity: n(quantity), holdingId, toWalletId, pricePerUnit: n(pricePerUnit), fee: fee ? n(fee) : undefined };
+      tx = { ...base, type, quantity, holdingId, toWalletId, pricePerUnit, fee: fee || undefined };
     }
     if (!tx) return;
     setTransactions((arr) => editing ? arr.map((t) => t.id === tx!.id ? tx! : t) : [tx!, ...arr]);
     toast.success(editing ? "Transaction updated" : "Transaction added");
     setIsOpen(false);
-    if (!editing) {
-      setAmount(""); setNotes(""); setQuantity(""); setPricePerUnit(""); setFee("");
-    }
   };
 
   return (
@@ -127,7 +139,7 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
         <div className="grid gap-3 mt-2">
           {(type === "income" || type === "expense") && (
             <>
-              <Field label="Amount"><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+              <Field label="Amount (Rp)"><NumberInputID value={amount} onChange={setAmount} placeholder="0" /></Field>
               <Field label={type === "income" ? "Destination Wallet" : "Source Wallet"}>
                 <WalletSelect wallets={wallets} value={walletId} onChange={setWalletId} />
               </Field>
@@ -145,7 +157,7 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
           )}
           {type === "transfer" && (
             <>
-              <Field label="Amount"><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+              <Field label="Amount"><NumberInputID value={amount} onChange={setAmount} decimals placeholder="0" /></Field>
               <Field label="From"><WalletSelect wallets={wallets} value={fromWalletId} onChange={setFromWalletId} /></Field>
               <Field label="To"><WalletSelect wallets={wallets} value={toWalletId} onChange={setToWalletId} /></Field>
             </>
@@ -162,12 +174,12 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
                 </Select>
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Quantity"><Input type="number" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></Field>
-                <Field label="Price/unit"><Input type="number" step="any" value={pricePerUnit} onChange={(e) => setPricePerUnit(e.target.value)} /></Field>
+                <Field label="Quantity"><NumberInputID value={quantity} onChange={setQuantity} decimals /></Field>
+                <Field label="Price/unit (Rp)"><NumberInputID value={pricePerUnit} onChange={setPricePerUnit} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Amount Paid (optional)"><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="auto" /></Field>
-                <Field label="Fee (optional)"><Input type="number" value={fee} onChange={(e) => setFee(e.target.value)} /></Field>
+                <Field label="Amount Paid (opt.)"><NumberInputID value={amount} onChange={setAmount} placeholder="auto" /></Field>
+                <Field label="Fee (opt.)"><NumberInputID value={fee} onChange={setFee} /></Field>
               </div>
             </>
           )}
@@ -183,13 +195,15 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
               </Field>
               <Field label="To Cash Wallet"><WalletSelect wallets={cashWallets} value={toWalletId} onChange={setToWalletId} /></Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Quantity"><Input type="number" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></Field>
-                <Field label="Sell Price/unit"><Input type="number" step="any" value={pricePerUnit} onChange={(e) => setPricePerUnit(e.target.value)} /></Field>
+                <Field label="Quantity"><NumberInputID value={quantity} onChange={setQuantity} decimals /></Field>
+                <Field label="Sell Price/unit (Rp)"><NumberInputID value={pricePerUnit} onChange={setPricePerUnit} /></Field>
               </div>
-              <Field label="Fee (optional)"><Input type="number" value={fee} onChange={(e) => setFee(e.target.value)} /></Field>
+              <Field label="Fee (opt.)"><NumberInputID value={fee} onChange={setFee} /></Field>
             </>
           )}
-          <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Date & Time">
+            <Input type="datetime-local" step={1} value={dateTime} onChange={(e) => setDateTime(e.target.value)} />
+          </Field>
           <Field label="Notes"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></Field>
         </div>
 

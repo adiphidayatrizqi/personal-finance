@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinance } from "@/lib/finance/store";
-import { fmtIDR } from "@/lib/finance/compute";
+import { fmtIDR, sortTransactionsDesc } from "@/lib/finance/compute";
+import { formatDateTimeSmartID } from "@/lib/finance/format";
 import { TransactionDialog } from "@/components/transaction-dialog";
 import type { Transaction } from "@/lib/finance/types";
 import { toast } from "sonner";
@@ -31,7 +32,7 @@ function Page() {
   const holdingById = (id: string) => state.holdings.find((h) => h.id === id);
 
   const filtered = useMemo(() => {
-    return [...state.transactions]
+    const arr = state.transactions
       .filter((t) => filterType === "all" || t.type === filterType)
       .filter((t) => {
         if (filterWallet === "all") return true;
@@ -52,8 +53,8 @@ function Page() {
         const q = search.toLowerCase();
         return (t.notes ?? "").toLowerCase().includes(q)
           || (t.type === "income" || t.type === "expense" ? (catById(t.categoryId)?.name.toLowerCase().includes(q) ?? false) : false);
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
+      });
+    return sortTransactionsDesc(arr);
   }, [state.transactions, search, filterType, filterWallet, filterCat, fromDate, toDate]);
 
   const describe = (t: Transaction) => {
@@ -131,7 +132,7 @@ function Page() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{d.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{d.sub} · {new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                  <p className="text-xs text-muted-foreground truncate">{d.sub} · {formatDateTimeSmartID(t.date)}</p>
                 </div>
                 <div className={"num text-sm font-semibold " + (d.neutral ? "text-foreground" : d.positive ? "text-success" : "text-destructive")}>
                   {d.neutral ? "" : d.positive ? "+" : "-"}{fmtIDR(d.amount)}

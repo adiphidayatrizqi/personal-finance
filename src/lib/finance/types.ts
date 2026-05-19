@@ -26,9 +26,10 @@ export interface Category {
 export interface BaseTx {
   id: string;
   type: TxType;
-  date: string; // ISO
+  date: string; // ISO datetime (down to seconds)
   notes?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface IncomeTx extends BaseTx { type: "income"; amount: number; walletId: string; categoryId: string; }

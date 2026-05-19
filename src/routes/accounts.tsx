@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Plus, Archive, Trash2, Pencil, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinance } from "@/lib/finance/store";
 import { uid } from "@/lib/finance/seed";
-import { walletBalance, walletValueIDR, fmtIDR, fmtNum } from "@/lib/finance/compute";
+import { walletBalance, walletValueIDR } from "@/lib/finance/compute";
+import { formatIDR, formatNumberID } from "@/lib/finance/format";
+import { NumberInputID } from "@/components/number-input";
 import type { Wallet, WalletType } from "@/lib/finance/types";
 import { toast } from "sonner";
 
@@ -74,8 +76,8 @@ function Page() {
                 </div>
               </div>
               <div>
-                <p className="num text-2xl font-semibold">{w.currency === "IDR" ? fmtIDR(bal) : fmtNum(bal) + " " + w.currency}</p>
-                {w.currency !== "IDR" && <p className="num text-xs text-muted-foreground mt-1">≈ {fmtIDR(idr)}</p>}
+                <p className="num text-2xl font-semibold">{w.currency === "IDR" ? formatIDR(bal) : formatNumberID(bal, 8) + " " + w.currency}</p>
+                {w.currency !== "IDR" && <p className="num text-xs text-muted-foreground mt-1">≈ {formatIDR(idr)}</p>}
               </div>
             </div>
           );
@@ -99,7 +101,7 @@ function Page() {
 function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Wallet | null; onSave: (w: Wallet) => void }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<WalletType>("Bank");
-  const [initialBalance, setInitialBalance] = useState("0");
+  const [initialBalance, setInitialBalance] = useState<number>(0);
   const [currency, setCurrency] = useState("IDR");
   const [icon, setIcon] = useState(ICONS[0]);
   const [color, setColor] = useState(COLORS[0]);
@@ -107,14 +109,12 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
   useEffect(() => {
     if (!open) return;
     if (editing) {
-      setName(editing.name); setType(editing.type); setInitialBalance(String(editing.initialBalance));
+      setName(editing.name); setType(editing.type); setInitialBalance(editing.initialBalance);
       setCurrency(editing.currency); setIcon(editing.icon); setColor(editing.color);
     } else {
-      setName(""); setType("Bank"); setInitialBalance("0"); setCurrency("IDR"); setIcon(ICONS[0]); setColor(COLORS[0]);
+      setName(""); setType("Bank"); setInitialBalance(0); setCurrency("IDR"); setIcon(ICONS[0]); setColor(COLORS[0]);
     }
   }, [open, editing]);
-
-
 
   const submit = () => {
     if (!name) return toast.error("Name required");
@@ -125,11 +125,12 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
       createdAt: editing?.createdAt ?? new Date().toISOString(),
     };
     onSave(w);
-    setName(""); setInitialBalance("0"); setCurrency("IDR"); setType("Bank");
   };
 
+  const isIDR = currency === "IDR";
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setName(""); } onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader><DialogTitle>{editing ? "Edit Wallet" : "Add Wallet"}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
@@ -143,7 +144,10 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
             </div>
             <div className="grid gap-1.5"><Label>Currency / Unit</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></div>
           </div>
-          <div className="grid gap-1.5"><Label>Initial Balance</Label><Input type="number" step="any" value={initialBalance} onChange={(e) => setInitialBalance(e.target.value)} /></div>
+          <div className="grid gap-1.5">
+            <Label>Initial Balance {isIDR ? "(Rp)" : `(${currency})`}</Label>
+            <NumberInputID value={initialBalance} onChange={setInitialBalance} decimals={!isIDR} placeholder={isIDR ? "0" : "0,00"} />
+          </div>
           <div className="grid gap-1.5"><Label>Icon</Label>
             <div className="flex flex-wrap gap-2">
               {ICONS.map((i) => (
