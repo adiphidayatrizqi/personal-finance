@@ -7,6 +7,15 @@ export const fmtIDRSigned = (n: number) => formatIDRSigned(n);
 export const fmtNum = (n: number, max = 6) => formatNumberID(n, max);
 export const fmtPct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 
+/** Sort transactions latest-first by `date`, tie-breaking on `createdAt`. */
+export function sortTransactionsDesc<T extends { date: string; createdAt: string }>(arr: T[]): T[] {
+  return [...arr].sort((a, b) => {
+    const d = b.date.localeCompare(a.date);
+    if (d !== 0) return d;
+    return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+  });
+}
+
 export function priceOf(symbol: string, prices: PriceSource[]): number | undefined {
   return prices.find((p) => p.symbol === symbol)?.price;
 }
