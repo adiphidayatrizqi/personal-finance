@@ -109,25 +109,30 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { FinanceProvider } from "@/lib/finance/store";
+import { Toaster } from "@/components/ui/sonner";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-background">
-          <AppSidebar />
-          <div className="flex-1 flex flex-col min-w-0">
-            <header className="md:hidden h-12 flex items-center border-b border-border px-2 bg-background sticky top-0 z-10">
-              <SidebarTrigger />
-            </header>
-            <main className="flex-1 min-w-0">
-              <Outlet />
-            </main>
+      <FinanceProvider>
+        <SidebarProvider>
+          <div className="min-h-screen flex w-full bg-background">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col min-w-0">
+              <header className="md:hidden h-12 flex items-center border-b border-border px-2 bg-background sticky top-0 z-10">
+                <SidebarTrigger />
+              </header>
+              <main className="flex-1 min-w-0">
+                <Outlet />
+              </main>
+            </div>
           </div>
-        </div>
-      </SidebarProvider>
+          <Toaster />
+        </SidebarProvider>
+      </FinanceProvider>
     </QueryClientProvider>
   );
 }
