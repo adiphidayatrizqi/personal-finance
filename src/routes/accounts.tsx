@@ -101,7 +101,7 @@ function Page() {
 function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Wallet | null; onSave: (w: Wallet) => void }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<WalletType>("Bank");
-  const [initialBalance, setInitialBalance] = useState("0");
+  const [initialBalance, setInitialBalance] = useState<number>(0);
   const [currency, setCurrency] = useState("IDR");
   const [icon, setIcon] = useState(ICONS[0]);
   const [color, setColor] = useState(COLORS[0]);
@@ -109,14 +109,12 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
   useEffect(() => {
     if (!open) return;
     if (editing) {
-      setName(editing.name); setType(editing.type); setInitialBalance(String(editing.initialBalance));
+      setName(editing.name); setType(editing.type); setInitialBalance(editing.initialBalance);
       setCurrency(editing.currency); setIcon(editing.icon); setColor(editing.color);
     } else {
-      setName(""); setType("Bank"); setInitialBalance("0"); setCurrency("IDR"); setIcon(ICONS[0]); setColor(COLORS[0]);
+      setName(""); setType("Bank"); setInitialBalance(0); setCurrency("IDR"); setIcon(ICONS[0]); setColor(COLORS[0]);
     }
   }, [open, editing]);
-
-
 
   const submit = () => {
     if (!name) return toast.error("Name required");
@@ -127,11 +125,12 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
       createdAt: editing?.createdAt ?? new Date().toISOString(),
     };
     onSave(w);
-    setName(""); setInitialBalance("0"); setCurrency("IDR"); setType("Bank");
   };
 
+  const isIDR = currency === "IDR";
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setName(""); } onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader><DialogTitle>{editing ? "Edit Wallet" : "Add Wallet"}</DialogTitle></DialogHeader>
         <div className="grid gap-3">
@@ -145,8 +144,10 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
             </div>
             <div className="grid gap-1.5"><Label>Currency / Unit</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></div>
           </div>
-          <div className="grid gap-1.5"><Label>Initial Balance</Label><Input type="number" step="any" value={initialBalance} onChange={(e) => setInitialBalance(e.target.value)} /></div>
-          <div className="grid gap-1.5"><Label>Icon</Label>
+          <div className="grid gap-1.5">
+            <Label>Initial Balance {isIDR ? "(Rp)" : `(${currency})`}</Label>
+            <NumberInputID value={initialBalance} onChange={setInitialBalance} decimals={!isIDR} placeholder={isIDR ? "0" : "0,00"} />
+          </div>
             <div className="flex flex-wrap gap-2">
               {ICONS.map((i) => (
                 <button key={i} type="button" onClick={() => setIcon(i)} className={"h-10 w-10 rounded-xl border text-lg " + (icon === i ? "border-primary bg-primary/10" : "border-border")}>{i}</button>
