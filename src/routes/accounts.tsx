@@ -76,8 +76,8 @@ function Page() {
                 </div>
               </div>
               <div>
-                <p className="num text-2xl font-semibold">{w.currency === "IDR" ? fmtIDR(bal) : fmtNum(bal) + " " + w.currency}</p>
-                {w.currency !== "IDR" && <p className="num text-xs text-muted-foreground mt-1">≈ {fmtIDR(idr)}</p>}
+                <p className="num text-2xl font-semibold">{w.currency === "IDR" ? formatIDR(bal) : formatNumberID(bal, 8) + " " + w.currency}</p>
+                {w.currency !== "IDR" && <p className="num text-xs text-muted-foreground mt-1">≈ {formatIDR(idr)}</p>}
               </div>
             </div>
           );
