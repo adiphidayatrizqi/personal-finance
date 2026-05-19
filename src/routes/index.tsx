@@ -12,7 +12,7 @@ function Overview() {
   const { state, hydrated } = useFinance();
   const s = computeDashboard(state);
 
-  const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  const recent = sortTransactionsDesc(state.transactions).slice(0, 6);
   const walletById = (id: string) => state.wallets.find((w) => w.id === id);
   const catById = (id: string) => state.categories.find((c) => c.id === id);
   const holdingById = (id: string) => state.holdings.find((h) => h.id === id);
