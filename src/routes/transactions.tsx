@@ -32,7 +32,7 @@ function Page() {
   const holdingById = (id: string) => state.holdings.find((h) => h.id === id);
 
   const filtered = useMemo(() => {
-    return [...state.transactions]
+    const arr = state.transactions
       .filter((t) => filterType === "all" || t.type === filterType)
       .filter((t) => {
         if (filterWallet === "all") return true;
@@ -53,8 +53,8 @@ function Page() {
         const q = search.toLowerCase();
         return (t.notes ?? "").toLowerCase().includes(q)
           || (t.type === "income" || t.type === "expense" ? (catById(t.categoryId)?.name.toLowerCase().includes(q) ?? false) : false);
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
+      });
+    return sortTransactionsDesc(arr);
   }, [state.transactions, search, filterType, filterWallet, filterCat, fromDate, toDate]);
 
   const describe = (t: Transaction) => {
