@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Plus, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, ArrowLeftRight, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFinance } from "@/lib/finance/store";
-import { computeDashboard, fmtIDR, fmtIDRSigned, fmtPct } from "@/lib/finance/compute";
+import { computeDashboard, fmtIDR, fmtPct, sortTransactionsDesc } from "@/lib/finance/compute";
 import { TransactionDialog } from "@/components/transaction-dialog";
 import { Link } from "@tanstack/react-router";
 
