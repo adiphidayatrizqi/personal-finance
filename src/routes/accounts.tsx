@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Archive, Trash2, Pencil, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -104,14 +104,15 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
   const [icon, setIcon] = useState(ICONS[0]);
   const [color, setColor] = useState(COLORS[0]);
 
-  useEffectSync(open, () => {
+  useEffect(() => {
+    if (!open) return;
     if (editing) {
       setName(editing.name); setType(editing.type); setInitialBalance(String(editing.initialBalance));
       setCurrency(editing.currency); setIcon(editing.icon); setColor(editing.color);
     } else {
       setName(""); setType("Bank"); setInitialBalance("0"); setCurrency("IDR"); setIcon(ICONS[0]); setColor(COLORS[0]);
     }
-  });
+  }, [open, editing]);
 
 
 
