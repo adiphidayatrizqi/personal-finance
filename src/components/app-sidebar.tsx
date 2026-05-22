@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/store";
 import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
 
 const items = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
@@ -38,11 +39,12 @@ export function AppSidebar() {
   const currentPath = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (path: string) => currentPath === path;
   const { logout, state: authState } = useAuth();
+  const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast.success("Logged out successfully");
-    window.location.href = "/login";
+    navigate({ to: "/login" });
   };
 
   return (

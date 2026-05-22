@@ -120,8 +120,7 @@ import { FinanceProvider } from "@/lib/finance/store";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/lib/auth/store";
 import { useNavigate } from "@tanstack/react-router";
-
-// Temporary local auth guard. Replace with Supabase Auth later.
+import { supabase } from "@/lib/supabase/client";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { state: authState, hydrated } = useAuth();
@@ -139,9 +138,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     } else {
       if (!authState.isAuthenticated) {
         navigate({ to: "/login", replace: true });
+      } else if (authState.email !== "adiphidayatr@gmail.com") {
+        // Block access if not the allowed email
+        supabase.auth.signOut();
+        navigate({ to: "/login", replace: true });
       }
     }
-  }, [hydrated, authState.isAuthenticated, isLoginPage, navigate]);
+  }, [hydrated, authState.isAuthenticated, authState.email, isLoginPage, navigate]);
 
   if (!hydrated) {
     return null;

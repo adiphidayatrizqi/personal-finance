@@ -1,26 +1,23 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { supabase } from "@/lib/supabase/client";
 
-// Temporary local auth guard. Replace with Supabase Auth later.
-
-const AUTH_STORAGE_KEY = "worthly.auth.v1";
+// Finance data is still stored locally. Supabase database migration will be done later.
 
 interface AuthState {
   isAuthenticated: boolean;
   email: string | null;
-  loggedInAt: string | null;
 }
 
 interface AuthContextValue {
   state: AuthState;
   hydrated: boolean;
-  login: (email: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function emptyAuthState(): AuthState {
-  return { isAuthenticated: false, email: null, loggedInAt: null };
+  return { isAuthenticated: false, email: null };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,39 +25,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-      if (raw) {
-        setState(JSON.parse(raw));
+    let mounted = true;
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) {
+        if (session?.user?.email) {
+          setState({
+            isAuthenticated: true,
+            email: session.user.email,
+          });
+        }
+        setHydrated(true);
       }
-    } catch {
-      setState(emptyAuthState());
-    }
-    setHydrated(true);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) {
+        if (session?.user?.email) {
+          setState({
+            isAuthenticated: true,
+            email: session.user.email,
+          });
+        } else {
+          setState(emptyAuthState());
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const ctx: AuthContextValue = useMemo(() => ({
-    state,
-    hydrated,
-    login: (email: string) => {
-      const authState: AuthState = {
-        isAuthenticated: true,
-        email,
-        loggedInAt: new Date().toISOString(),
-      };
-      setState(authState);
-      try {
-        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
-      } catch {}
-    },
-    logout: () => {
-      setState(emptyAuthState());
-      try {
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      } catch {}
-    },
-  }), [state, hydrated]);
+  const ctx: AuthContextValue = useMemo(
+    () => ({
+      state,
+      hydrated,
+      logout: async () => {
+        await supabase.auth.signOut();
+      },
+    }),
+    [state, hydrated]
+  );
 
   return <AuthContext.Provider value={ctx}>{children}</AuthContext.Provider>;
 }
