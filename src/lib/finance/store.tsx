@@ -1,8 +1,24 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { FinanceState, Wallet, Category, Transaction, Holding, PriceSource, Budget, Goal } from "./types";
-import { seedState } from "./seed";
+import { uid } from "./seed";
 
 const STORAGE_KEY = "savvr.finance.v1";
+
+function defaultCategories(): Category[] {
+  const expCats = ["Food", "Transport", "Bills", "Shopping", "Entertainment", "Health", "Family", "Subscription", "Miscellaneous"];
+  const incCats = ["Salary", "Bonus", "Cashback", "Gift", "Other Income"];
+  const invCats = ["Gold", "FX", "Crypto", "Stock"];
+
+  return [
+    ...expCats.map((n) => ({ id: uid(), name: n, kind: "expense" as const, icon: "💸", archived: false })),
+    ...incCats.map((n) => ({ id: uid(), name: n, kind: "income" as const, icon: "💰", archived: false })),
+    ...invCats.map((n) => ({ id: uid(), name: n, kind: "investment" as const, icon: "📈", archived: false })),
+  ];
+}
+
+function emptyState(): FinanceState {
+  return { wallets: [], categories: defaultCategories(), transactions: [], holdings: [], prices: [], budgets: [], goals: [] };
+}
 
 type Updater<T> = (items: T[]) => T[];
 
@@ -21,10 +37,6 @@ interface Ctx {
 
 const FinanceContext = createContext<Ctx | null>(null);
 
-function emptyState(): FinanceState {
-  return { wallets: [], categories: [], transactions: [], holdings: [], prices: [], budgets: [], goals: [] };
-}
-
 export function FinanceProvider({ children }: { children: ReactNode }) {
   // Start with empty during SSR to avoid hydration mismatch
   const [state, setState] = useState<FinanceState>(() => emptyState());
@@ -37,12 +49,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       if (raw) {
         setState(JSON.parse(raw));
       } else {
-        const seeded = seedState();
-        setState(seeded);
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+        const empty = emptyState();
+        setState(empty);
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(empty));
       }
     } catch {
-      setState(seedState());
+      setState(emptyState());
     }
     setHydrated(true);
   }, []);
@@ -64,7 +76,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     setPrices: (u) => setState((s) => ({ ...s, prices: u(s.prices) })),
     setBudgets: (u) => setState((s) => ({ ...s, budgets: u(s.budgets) })),
     setGoals: (u) => setState((s) => ({ ...s, goals: u(s.goals) })),
-    reset: () => { setState(seedState()); },
+    reset: () => { setState(emptyState()); },
   }), [state, hydrated]);
 
   return <FinanceContext.Provider value={ctx}>{children}</FinanceContext.Provider>;

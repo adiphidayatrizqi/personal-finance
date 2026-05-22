@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinance } from "@/lib/finance/store";
 import { uid } from "@/lib/finance/seed";
+import { formatNumberID } from "@/lib/finance/format";
 import type { PriceSource, AssetType } from "@/lib/finance/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/price-sources")({
-  head: () => ({ meta: [{ title: "Price Sources — Savvr" }] }),
+  head: () => ({ meta: [{ title: "Price Sources — Worthly" }] }),
   component: Page,
 });
 
@@ -50,7 +51,7 @@ function Page() {
           <div key={p.id} className="grid grid-cols-12 px-5 py-4 border-b border-border last:border-0 items-center gap-2">
             <div className="col-span-6 md:col-span-3 font-semibold text-sm">{p.symbol}</div>
             <div className="col-span-6 md:col-span-2 text-sm text-muted-foreground">{p.category}</div>
-            <div className="col-span-6 md:col-span-3 text-right num text-sm font-semibold">{p.currency} {Math.round(p.price).toLocaleString("id-ID")}</div>
+            <div className="col-span-6 md:col-span-3 text-right num text-sm font-semibold">{p.currency} {formatNumberID(Math.round(p.price))}</div>
             <div className="col-span-3 md:col-span-2 text-xs text-muted-foreground flex items-center gap-1"><RefreshCw className="h-3 w-3" />{p.source}</div>
             <div className="col-span-3 md:col-span-1 text-xs text-muted-foreground text-right">{new Date(p.updatedAt).toLocaleDateString()}</div>
             <div className="col-span-12 md:col-span-1 flex gap-1 md:justify-end">

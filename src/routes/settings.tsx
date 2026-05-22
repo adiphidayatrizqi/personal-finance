@@ -13,7 +13,7 @@ import type { Category, CategoryKind } from "@/lib/finance/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Settings — Savvr" }] }),
+  head: () => ({ meta: [{ title: "Settings — Worthly" }] }),
   component: Page,
 });
 

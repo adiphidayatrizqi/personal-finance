@@ -11,11 +11,12 @@ import { Progress } from "@/components/ui/progress";
 import { useFinance } from "@/lib/finance/store";
 import { uid } from "@/lib/finance/seed";
 import { fmtIDR, monthlySpendByCategory } from "@/lib/finance/compute";
+import { formatIDR } from "@/lib/finance/format";
 import type { Budget, Goal } from "@/lib/finance/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/plan")({
-  head: () => ({ meta: [{ title: "Plan — Savvr" }] }),
+  head: () => ({ meta: [{ title: "Plan — Worthly" }] }),
   component: Page,
 });
 
@@ -184,8 +185,8 @@ function Goals() {
                 </div>
               </div>
               <div className="flex items-baseline justify-between mb-2">
-                <span className="num text-xl font-semibold">{g.current.toLocaleString("id-ID")}</span>
-                <span className="num text-xs text-muted-foreground">of {g.target.toLocaleString("id-ID")}</span>
+                <span className="num text-xl font-semibold">{formatIDR(g.current)}</span>
+                <span className="num text-xs text-muted-foreground">of {formatIDR(g.target)}</span>
               </div>
               <Progress value={pct} />
               <p className="num text-xs text-muted-foreground mt-2">{pct.toFixed(0)}% complete</p>

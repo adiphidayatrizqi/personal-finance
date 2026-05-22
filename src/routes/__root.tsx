@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -72,18 +73,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Savvr — Personal Finance Dashboard" },
-      { name: "description", content: "Track net worth, cash, investments, and goals in one premium personal finance dashboard." },
-      { name: "author", content: "Savvr" },
-      { property: "og:title", content: "Savvr — Personal Finance Dashboard" },
-      { property: "og:description", content: "Your money, assets, and portfolio in one place." },
+      { title: "Worthly — Personal Net Worth Dashboard" },
+      { name: "description", content: "Personal finance, net worth, and portfolio dashboard." },
+      { name: "author", content: "Worthly" },
+      { property: "og:title", content: "Worthly — Personal Net Worth Dashboard" },
+      { property: "og:description", content: "Your personal net worth dashboard." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "theme-color", content: "#4169E1" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg",
       },
     ],
   }),
@@ -111,28 +118,74 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { FinanceProvider } from "@/lib/finance/store";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth } from "@/lib/auth/store";
+import { useNavigate } from "@tanstack/react-router";
+
+// Temporary local auth guard. Replace with Supabase Auth later.
+
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { state: authState, hydrated } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLoginPage = pathname === "/login";
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    if (isLoginPage) {
+      if (authState.isAuthenticated) {
+        navigate({ to: "/", replace: true });
+      }
+    } else {
+      if (!authState.isAuthenticated) {
+        navigate({ to: "/login", replace: true });
+      }
+    }
+  }, [hydrated, authState.isAuthenticated, isLoginPage, navigate]);
+
+  if (!hydrated) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
+
+import { useEffect } from "react";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLoginPage = pathname === "/login";
 
   return (
     <QueryClientProvider client={queryClient}>
-      <FinanceProvider>
-        <SidebarProvider>
-          <div className="min-h-screen flex w-full bg-background">
-            <AppSidebar />
-            <div className="flex-1 flex flex-col min-w-0">
-              <header className="md:hidden h-12 flex items-center border-b border-border px-2 bg-background sticky top-0 z-10">
-                <SidebarTrigger />
-              </header>
-              <main className="flex-1 min-w-0">
+      <AuthProvider>
+        <AuthGuard>
+          <FinanceProvider>
+            {isLoginPage ? (
+              <div className="min-h-screen">
                 <Outlet />
-              </main>
-            </div>
-          </div>
-          <Toaster />
-        </SidebarProvider>
-      </FinanceProvider>
+                <Toaster />
+              </div>
+            ) : (
+              <SidebarProvider>
+                <div className="min-h-screen flex w-full bg-background">
+                  <AppSidebar />
+                  <div className="flex-1 flex flex-col min-w-0">
+                    <header className="md:hidden h-12 flex items-center border-b border-border px-2 bg-background sticky top-0 z-10">
+                      <SidebarTrigger />
+                    </header>
+                    <main className="flex-1 min-w-0">
+                      <Outlet />
+                    </main>
+                  </div>
+                </div>
+                <Toaster />
+              </SidebarProvider>
+            )}
+          </FinanceProvider>
+        </AuthGuard>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

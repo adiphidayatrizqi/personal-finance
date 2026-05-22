@@ -7,6 +7,7 @@ import {
   Wallet,
   LineChart,
   Settings,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -19,6 +20,9 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth/store";
+import { toast } from "sonner";
 
 const items = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
@@ -33,17 +37,22 @@ const items = [
 export function AppSidebar() {
   const currentPath = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (path: string) => currentPath === path;
+  const { logout, state: authState } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+    window.location.href = "/login";
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="px-4 py-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
-            S
-          </div>
+          <img src="/assets/worthly-logo.svg" alt="Worthly" className="h-9 w-auto" />
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold tracking-tight">Savvr</span>
-            <span className="text-xs text-muted-foreground">Personal Finance</span>
+            <span className="text-sm font-semibold tracking-tight">Worthly</span>
+            <span className="text-xs text-muted-foreground">Your personal net worth dashboard</span>
           </div>
         </div>
       </SidebarHeader>
@@ -72,16 +81,25 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3">
+      <SidebarFooter className="p-3 space-y-2">
         <div className="flex items-center gap-3 rounded-xl bg-sidebar-accent/60 p-2.5 group-data-[collapsible=icon]:hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-semibold">
             AD
           </div>
           <div className="flex flex-col leading-tight">
             <span className="text-xs font-medium">Adip</span>
-            <span className="text-[11px] text-muted-foreground">adip@savvr.app</span>
+            <span className="text-[11px] text-muted-foreground">{authState.email || "adip@worthly.app"}</span>
           </div>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="w-full justify-start gap-2 h-9 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:hidden"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );

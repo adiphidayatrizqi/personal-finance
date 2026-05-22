@@ -12,7 +12,7 @@ import type { Transaction } from "@/lib/finance/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/transactions")({
-  head: () => ({ meta: [{ title: "Transactions — Savvr" }] }),
+  head: () => ({ meta: [{ title: "Transactions — Worthly" }] }),
   component: Page,
 });
 

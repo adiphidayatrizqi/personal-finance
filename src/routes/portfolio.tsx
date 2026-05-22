@@ -13,7 +13,7 @@ import type { Holding, AssetType } from "@/lib/finance/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/portfolio")({
-  head: () => ({ meta: [{ title: "Portfolio — Savvr" }] }),
+  head: () => ({ meta: [{ title: "Portfolio — Worthly" }] }),
   component: Page,
 });
 

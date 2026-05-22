@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Plus, Archive, Trash2, Pencil, ArchiveRestore } from "lucide-react";
+import { Plus, Archive, Trash2, Pencil, ArchiveRestore, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import type { Wallet, WalletType } from "@/lib/finance/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/accounts")({
-  head: () => ({ meta: [{ title: "Accounts — Savvr" }] }),
+  head: () => ({ meta: [{ title: "Accounts — Worthly" }] }),
   component: Page,
 });
 
@@ -24,10 +24,12 @@ const ICONS = ["🏦", "💵", "📱", "💳", "🥇", "₿", "📈", "💼", "�
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#6b7280"];
 
 function Page() {
-  const { state, setWallets, hydrated } = useFinance();
+  const { state, setWallets, setTransactions, hydrated } = useFinance();
   const [editing, setEditing] = useState<Wallet | null>(null);
   const [open, setOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [adjustingWallet, setAdjustingWallet] = useState<Wallet | null>(null);
+  const [adjustOpen, setAdjustOpen] = useState(false);
 
   const list = state.wallets.filter((w) => showArchived ? w.archived : !w.archived);
 
@@ -64,6 +66,7 @@ function Page() {
                 </div>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => { setEditing(w); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => { setAdjustingWallet(w); setAdjustOpen(true); }}><Scale className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => {
                     setWallets((arr) => arr.map((x) => x.id === w.id ? { ...x, archived: !x.archived } : x));
                     toast.success(w.archived ? "Unarchived" : "Archived");
@@ -94,6 +97,7 @@ function Page() {
         toast.success(editing ? "Wallet updated" : "Wallet added");
         setOpen(false);
       }} />
+      <AdjustBalanceDialog open={adjustOpen} onOpenChange={setAdjustOpen} wallet={adjustingWallet} state={state} setTransactions={setTransactions} />
     </div>
   );
 }
@@ -166,6 +170,116 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdjustBalanceDialog({ open, onOpenChange, wallet, state, setTransactions }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  wallet: Wallet | null;
+  state: any;
+  setTransactions: (u: (items: any[]) => any[]) => void;
+}) {
+  const [newBalance, setNewBalance] = useState<number>(0);
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!open || !wallet) return;
+    const bal = walletBalance(wallet, state.transactions);
+    setNewBalance(bal);
+    setNote("");
+  }, [open, wallet, state.transactions]);
+
+  if (!wallet) return null;
+
+  const currentBalance = walletBalance(wallet, state.transactions);
+  const isIDR = wallet.currency === "IDR";
+  const difference = newBalance - currentBalance;
+
+  const submit = () => {
+    if (difference === 0) {
+      toast.info("No balance change needed");
+      onOpenChange(false);
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const incomeCat = state.categories.find((c: any) => c.name === "Other Income" && c.kind === "income");
+    const expenseCat = state.categories.find((c: any) => c.name === "Miscellaneous" && c.kind === "expense");
+
+    if (difference > 0) {
+      if (!incomeCat) {
+        toast.error("Income category 'Other Income' not found");
+        return;
+      }
+      const tx = {
+        id: uid(),
+        type: "income" as const,
+        amount: difference,
+        walletId: wallet.id,
+        categoryId: incomeCat.id,
+        date: now,
+        notes: note || "Balance adjustment",
+        createdAt: now,
+        updatedAt: now,
+      };
+      setTransactions((arr) => [...arr, tx]);
+      toast.success(`Balance adjusted: +${formatIDR(difference)}`);
+    } else {
+      if (!expenseCat) {
+        toast.error("Expense category 'Miscellaneous' not found");
+        return;
+      }
+      const tx = {
+        id: uid(),
+        type: "expense" as const,
+        amount: Math.abs(difference),
+        walletId: wallet.id,
+        categoryId: expenseCat.id,
+        date: now,
+        notes: note || "Balance adjustment",
+        createdAt: now,
+        updatedAt: now,
+      };
+      setTransactions((arr) => [...arr, tx]);
+      toast.success(`Balance adjusted: ${formatIDR(difference)}`);
+    }
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Adjust Balance</DialogTitle></DialogHeader>
+        <div className="grid gap-4">
+          <div>
+            <p className="text-sm font-medium">{wallet.name}</p>
+            <p className="text-xs text-muted-foreground">{wallet.type} · {wallet.currency}</p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Current Balance</Label>
+            <p className="num text-lg font-semibold">{isIDR ? formatIDR(currentBalance) : formatNumberID(currentBalance, 8) + " " + wallet.currency}</p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>New Balance</Label>
+            <NumberInputID value={newBalance} onChange={setNewBalance} decimals={!isIDR} placeholder={isIDR ? "0" : "0,00"} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Note (optional)</Label>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason for adjustment" />
+          </div>
+          {difference !== 0 && (
+            <div className={"text-sm p-3 rounded-lg " + (difference > 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+              {difference > 0 ? "Will add" : "Will subtract"} {isIDR ? formatIDR(Math.abs(difference)) : formatNumberID(Math.abs(difference), 8) + " " + wallet.currency} ({difference > 0 ? "Income" : "Expense"})
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={difference === 0}>Save Adjustment</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
