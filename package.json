@@ -7,6 +7,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:github": "vite build --config vite.config.github.ts",
+    "postbuild:github": "node scripts/postbuild-github.js",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

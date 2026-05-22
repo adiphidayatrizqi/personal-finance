@@ -17,7 +17,7 @@ export const Route = createFileRoute("/transactions")({
 });
 
 function Page() {
-  const { state, setTransactions, hydrated } = useFinance();
+  const { state, deleteTransaction, hydrated } = useFinance();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterWallet, setFilterWallet] = useState<string>("all");
@@ -139,10 +139,14 @@ function Page() {
                 </div>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => { setEditing(t); setOpenDialog(true); }}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => {
+                  <Button size="icon" variant="ghost" onClick={async () => {
                     if (!confirm("Delete this transaction?")) return;
-                    setTransactions((arr) => arr.filter((x) => x.id !== t.id));
-                    toast.success("Deleted");
+                    try {
+                      await deleteTransaction(t.id);
+                      toast.success("Deleted");
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Failed to delete transaction");
+                    }
                   }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </li>

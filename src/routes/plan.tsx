@@ -40,14 +40,43 @@ function Page() {
 }
 
 function Budgets() {
-  const { state, setBudgets, hydrated } = useFinance();
+  const { state, createBudget, updateBudget, deleteBudget, hydrated } = useFinance();
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [editing, setEditing] = useState<Budget | null>(null);
   const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const used = monthlySpendByCategory(state, month);
   const monthBudgets = state.budgets.filter((b) => b.month === month);
   const catById = (id: string) => state.categories.find((c) => c.id === id);
+
+  const handleSave = async (budget: Budget) => {
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updateBudget(budget);
+        toast.success("Budget updated");
+      } else {
+        await createBudget(budget);
+        toast.success("Budget added");
+      }
+      setOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save budget");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (budgetId: string) => {
+    if (!confirm("Delete this budget?")) return;
+    try {
+      await deleteBudget(budgetId);
+      toast.success("Budget deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete budget");
+    }
+  };
 
   return (
     <div>
@@ -78,10 +107,7 @@ function Budgets() {
                 </div>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => { setEditing(b); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => {
-                    setBudgets((arr) => arr.filter((x) => x.id !== b.id));
-                    toast.success("Deleted");
-                  }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => handleDelete(b.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </div>
               <div className="flex items-baseline justify-between mb-2">
@@ -101,16 +127,12 @@ function Budgets() {
         })}
       </div>
 
-      <BudgetDialog open={open} onOpenChange={setOpen} editing={editing} month={month} onSave={(b) => {
-        setBudgets((arr) => editing ? arr.map((x) => x.id === b.id ? b : x) : [...arr, b]);
-        toast.success("Saved");
-        setOpen(false);
-      }} />
+      <BudgetDialog open={open} onOpenChange={setOpen} editing={editing} month={month} onSave={handleSave} isSaving={isSaving} />
     </div>
   );
 }
 
-function BudgetDialog({ open, onOpenChange, editing, month, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Budget | null; month: string; onSave: (b: Budget) => void }) {
+function BudgetDialog({ open, onOpenChange, editing, month, onSave, isSaving }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Budget | null; month: string; onSave: (b: Budget) => Promise<void>; isSaving: boolean }) {
   const { state } = useFinance();
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("0");
@@ -121,6 +143,11 @@ function BudgetDialog({ open, onOpenChange, editing, month, onSave }: { open: bo
     if (editing) { setCategoryId(editing.categoryId); setAmount(String(editing.amount)); setM(editing.month); }
     else { setCategoryId(""); setAmount("0"); setM(month); }
   }, [open, editing, month]);
+
+  const submit = async () => {
+    if (!categoryId) return toast.error("Category required");
+    await onSave({ id: editing?.id ?? uid(), categoryId, amount: Number(amount) || 0, month: m });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -137,11 +164,8 @@ function BudgetDialog({ open, onOpenChange, editing, month, onSave }: { open: bo
           <div className="grid gap-1.5"><Label>Budget Amount</Label><Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => {
-            if (!categoryId) return toast.error("Category required");
-            onSave({ id: editing?.id ?? uid(), categoryId, amount: Number(amount) || 0, month: m });
-          }}>Save</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={submit} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -149,9 +173,38 @@ function BudgetDialog({ open, onOpenChange, editing, month, onSave }: { open: bo
 }
 
 function Goals() {
-  const { state, setGoals, hydrated } = useFinance();
+  const { state, createGoal, updateGoal, deleteGoal, hydrated } = useFinance();
   const [editing, setEditing] = useState<Goal | null>(null);
   const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async (goal: Goal) => {
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updateGoal(goal);
+        toast.success("Goal updated");
+      } else {
+        await createGoal(goal);
+        toast.success("Goal added");
+      }
+      setOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save goal");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (goalId: string) => {
+    if (!confirm("Delete this goal?")) return;
+    try {
+      await deleteGoal(goalId);
+      toast.success("Goal deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete goal");
+    }
+  };
 
   return (
     <div>
@@ -178,10 +231,7 @@ function Goals() {
                 </div>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => { setEditing(g); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => {
-                    setGoals((arr) => arr.filter((x) => x.id !== g.id));
-                    toast.success("Deleted");
-                  }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => handleDelete(g.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </div>
               <div className="flex items-baseline justify-between mb-2">
@@ -195,16 +245,12 @@ function Goals() {
         })}
       </div>
 
-      <GoalDialog open={open} onOpenChange={setOpen} editing={editing} onSave={(g) => {
-        setGoals((arr) => editing ? arr.map((x) => x.id === g.id ? g : x) : [...arr, g]);
-        toast.success("Saved");
-        setOpen(false);
-      }} />
+      <GoalDialog open={open} onOpenChange={setOpen} editing={editing} onSave={handleSave} isSaving={isSaving} />
     </div>
   );
 }
 
-function GoalDialog({ open, onOpenChange, editing, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Goal | null; onSave: (g: Goal) => void }) {
+function GoalDialog({ open, onOpenChange, editing, onSave, isSaving }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Goal | null; onSave: (g: Goal) => Promise<void>; isSaving: boolean }) {
   const { state } = useFinance();
   const [name, setName] = useState("");
   const [target, setTarget] = useState("0");
@@ -219,6 +265,14 @@ function GoalDialog({ open, onOpenChange, editing, onSave }: { open: boolean; on
       setWalletId(editing.walletId ?? ""); setDeadline(editing.deadline?.slice(0, 10) ?? "");
     } else { setName(""); setTarget("0"); setCurrent("0"); setWalletId(""); setDeadline(""); }
   }, [open, editing]);
+
+  const submit = async () => {
+    if (!name) return toast.error("Name required");
+    await onSave({
+      id: editing?.id ?? uid(), name, target: Number(target) || 0, current: Number(current) || 0,
+      walletId: walletId || undefined, deadline: deadline ? new Date(deadline).toISOString() : undefined,
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -242,14 +296,8 @@ function GoalDialog({ open, onOpenChange, editing, onSave }: { open: boolean; on
           <div className="grid gap-1.5"><Label>Deadline (optional)</Label><Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => {
-            if (!name) return toast.error("Name required");
-            onSave({
-              id: editing?.id ?? uid(), name, target: Number(target) || 0, current: Number(current) || 0,
-              walletId: walletId || undefined, deadline: deadline ? new Date(deadline).toISOString() : undefined,
-            });
-          }}>Save</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={submit} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

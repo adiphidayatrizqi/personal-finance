@@ -21,8 +21,9 @@ interface Props {
 }
 
 export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChange }: Props) {
-  const { state, setTransactions } = useFinance();
+  const { state, createTransaction, updateTransaction } = useFinance();
   const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const isControlled = ctrlOpen !== undefined;
   const isOpen = isControlled ? ctrlOpen : open;
   const setIsOpen = (v: boolean) => { if (isControlled) onOpenChange?.(v); else setOpen(v); };
@@ -84,7 +85,7 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
   const expCats = cats.filter((c) => c.kind === "expense");
   const incCats = cats.filter((c) => c.kind === "income");
 
-  const submit = () => {
+  const submit = async () => {
     const nowIso = new Date().toISOString();
     const base = {
       id: editing?.id ?? uid(),
@@ -113,9 +114,22 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
       tx = { ...base, type, quantity, holdingId, toWalletId, pricePerUnit, fee: fee || undefined };
     }
     if (!tx) return;
-    setTransactions((arr) => editing ? arr.map((t) => t.id === tx!.id ? tx! : t) : [tx!, ...arr]);
-    toast.success(editing ? "Transaction updated" : "Transaction added");
-    setIsOpen(false);
+
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updateTransaction(tx);
+        toast.success("Transaction updated");
+      } else {
+        await createTransaction(tx);
+        toast.success("Transaction added");
+      }
+      setIsOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save transaction");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -208,8 +222,8 @@ export function TransactionDialog({ trigger, editing, open: ctrlOpen, onOpenChan
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-          <Button onClick={submit}>{editing ? "Save" : "Add"}</Button>
+          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={submit} disabled={isSaving}>{isSaving ? "Saving..." : (editing ? "Save" : "Add")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

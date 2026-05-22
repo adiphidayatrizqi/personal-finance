@@ -20,9 +20,10 @@ export const Route = createFileRoute("/portfolio")({
 const ASSET_TYPES: AssetType[] = ["Gold", "Crypto", "FX", "Stock", "Custom"];
 
 function Page() {
-  const { state, setHoldings, hydrated } = useFinance();
+  const { state, createHolding, updateHolding, deleteHolding, hydrated } = useFinance();
   const [editing, setEditing] = useState<Holding | null>(null);
   const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const rows = state.holdings.map((h) => {
     const qty = holdingQuantity(h, state.transactions);
@@ -38,6 +39,34 @@ function Page() {
   const totalCost = rows.reduce((s, r) => s + r.cost, 0);
   const totalPnl = totalValue - totalCost;
   const totalPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+
+  const handleSave = async (holding: Holding) => {
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updateHolding(holding);
+        toast.success("Holding updated");
+      } else {
+        await createHolding(holding);
+        toast.success("Holding added");
+      }
+      setOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save holding");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (holdingId: string) => {
+    if (!confirm("Delete this holding?")) return;
+    try {
+      await deleteHolding(holdingId);
+      toast.success("Holding deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete holding");
+    }
+  };
 
   return (
     <div className="px-6 lg:px-10 py-8 max-w-[1400px] mx-auto">
@@ -87,21 +116,13 @@ function Page() {
             </div>
             <div className="col-span-4 md:col-span-1 flex gap-1 md:justify-end">
               <Button size="icon" variant="ghost" onClick={() => { setEditing(h); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-              <Button size="icon" variant="ghost" onClick={() => {
-                if (!confirm("Delete this holding?")) return;
-                setHoldings((arr) => arr.filter((x) => x.id !== h.id));
-                toast.success("Deleted");
-              }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(h.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
             </div>
           </div>
         ))}
       </div>
 
-      <HoldingDialog open={open} onOpenChange={setOpen} editing={editing} onSave={(h) => {
-        setHoldings((arr) => editing ? arr.map((x) => x.id === h.id ? h : x) : [...arr, h]);
-        toast.success(editing ? "Holding updated" : "Holding added");
-        setOpen(false);
-      }} />
+      <HoldingDialog open={open} onOpenChange={setOpen} editing={editing} onSave={handleSave} isSaving={isSaving} />
     </div>
   );
 }
@@ -117,7 +138,7 @@ function StatCard({ label, value, sub, tone }: { label: string; value: string; s
   );
 }
 
-function HoldingDialog({ open, onOpenChange, editing, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Holding | null; onSave: (h: Holding) => void }) {
+function HoldingDialog({ open, onOpenChange, editing, onSave, isSaving }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Holding | null; onSave: (h: Holding) => Promise<void>; isSaving: boolean }) {
   const { state } = useFinance();
   const [name, setName] = useState("");
   const [type, setType] = useState<AssetType>("Gold");
@@ -140,7 +161,7 @@ function HoldingDialog({ open, onOpenChange, editing, onSave }: { open: boolean;
     }
   }, [open, editing]);
 
-  const submit = () => {
+  const submit = async () => {
     if (!name || !symbol) return toast.error("Name and symbol required");
     const h: Holding = {
       id: editing?.id ?? uid(),
@@ -148,7 +169,7 @@ function HoldingDialog({ open, onOpenChange, editing, onSave }: { open: boolean;
       manualPrice: manualPrice ? Number(manualPrice) : undefined,
       linkedWalletId: linkedWalletId || undefined,
     };
-    onSave(h);
+    await onSave(h);
   };
 
   return (
@@ -185,8 +206,8 @@ function HoldingDialog({ open, onOpenChange, editing, onSave }: { open: boolean;
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit}>Save</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={submit} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

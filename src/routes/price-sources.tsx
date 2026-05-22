@@ -20,9 +20,38 @@ export const Route = createFileRoute("/price-sources")({
 const CATS: AssetType[] = ["Gold", "Crypto", "FX", "Stock", "Custom"];
 
 function Page() {
-  const { state, setPrices, hydrated } = useFinance();
+  const { state, createPriceSource, updatePriceSource, deletePriceSource, hydrated } = useFinance();
   const [editing, setEditing] = useState<PriceSource | null>(null);
   const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async (priceSource: PriceSource) => {
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updatePriceSource(priceSource);
+        toast.success("Price updated");
+      } else {
+        await createPriceSource(priceSource);
+        toast.success("Price added");
+      }
+      setOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save price");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (priceSourceId: string) => {
+    if (!confirm("Delete this price?")) return;
+    try {
+      await deletePriceSource(priceSourceId);
+      toast.success("Price deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete price");
+    }
+  };
 
   return (
     <div className="px-6 lg:px-10 py-8 max-w-[1400px] mx-auto">
@@ -56,26 +85,18 @@ function Page() {
             <div className="col-span-3 md:col-span-1 text-xs text-muted-foreground text-right">{new Date(p.updatedAt).toLocaleDateString()}</div>
             <div className="col-span-12 md:col-span-1 flex gap-1 md:justify-end">
               <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-              <Button size="icon" variant="ghost" onClick={() => {
-                if (!confirm("Delete this price?")) return;
-                setPrices((arr) => arr.filter((x) => x.id !== p.id));
-                toast.success("Deleted");
-              }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
             </div>
           </div>
         ))}
       </div>
 
-      <PriceDialog open={open} onOpenChange={setOpen} editing={editing} onSave={(p) => {
-        setPrices((arr) => editing ? arr.map((x) => x.id === p.id ? p : x) : [...arr, p]);
-        toast.success("Saved");
-        setOpen(false);
-      }} />
+      <PriceDialog open={open} onOpenChange={setOpen} editing={editing} onSave={handleSave} isSaving={isSaving} />
     </div>
   );
 }
 
-function PriceDialog({ open, onOpenChange, editing, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; editing: PriceSource | null; onSave: (p: PriceSource) => void }) {
+function PriceDialog({ open, onOpenChange, editing, onSave, isSaving }: { open: boolean; onOpenChange: (v: boolean) => void; editing: PriceSource | null; onSave: (p: PriceSource) => Promise<void>; isSaving: boolean }) {
   const [symbol, setSymbol] = useState("");
   const [category, setCategory] = useState<AssetType>("Gold");
   const [price, setPrice] = useState("0");
@@ -90,9 +111,9 @@ function PriceDialog({ open, onOpenChange, editing, onSave }: { open: boolean; o
     }
   }, [open, editing]);
 
-  const submit = () => {
+  const submit = async () => {
     if (!symbol) return toast.error("Symbol required");
-    onSave({
+    await onSave({
       id: editing?.id ?? uid(),
       symbol, category, price: Number(price) || 0, currency, source: "Manual",
       updatedAt: new Date().toISOString(),
@@ -117,8 +138,8 @@ function PriceDialog({ open, onOpenChange, editing, onSave }: { open: boolean; o
           <div className="grid gap-1.5"><Label>Price</Label><Input type="number" step="any" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit}>Save</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={submit} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

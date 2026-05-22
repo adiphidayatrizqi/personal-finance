@@ -11,7 +11,7 @@ import { uid } from "@/lib/finance/seed";
 import { walletBalance, walletValueIDR } from "@/lib/finance/compute";
 import { formatIDR, formatNumberID } from "@/lib/finance/format";
 import { NumberInputID } from "@/components/number-input";
-import type { Wallet, WalletType } from "@/lib/finance/types";
+import type { Wallet, WalletType, Transaction } from "@/lib/finance/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/accounts")({
@@ -24,14 +24,52 @@ const ICONS = ["🏦", "💵", "📱", "💳", "🥇", "₿", "📈", "💼", "�
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#6b7280"];
 
 function Page() {
-  const { state, setWallets, setTransactions, hydrated } = useFinance();
+  const { state, hydrated, createWallet, updateWallet, archiveWallet, deleteWallet, createTransaction } = useFinance();
   const [editing, setEditing] = useState<Wallet | null>(null);
   const [open, setOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [adjustingWallet, setAdjustingWallet] = useState<Wallet | null>(null);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const list = state.wallets.filter((w) => showArchived ? w.archived : !w.archived);
+
+  const handleSave = async (wallet: Wallet) => {
+    setIsSaving(true);
+    try {
+      if (editing) {
+        await updateWallet(wallet);
+        toast.success("Wallet updated");
+      } else {
+        await createWallet(wallet);
+        toast.success("Wallet added");
+      }
+      setOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save wallet");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleArchive = async (walletId: string, currentArchived: boolean) => {
+    try {
+      await archiveWallet(walletId);
+      toast.success(currentArchived ? "Wallet unarchived" : "Wallet archived");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to archive wallet");
+    }
+  };
+
+  const handleDelete = async (walletId: string) => {
+    if (!confirm("Delete this wallet? Related transactions will remain.")) return;
+    try {
+      await deleteWallet(walletId);
+      toast.success("Wallet deleted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete wallet");
+    }
+  };
 
   return (
     <div className="px-6 lg:px-10 py-8 max-w-[1400px] mx-auto">
@@ -67,15 +105,8 @@ function Page() {
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => { setEditing(w); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => { setAdjustingWallet(w); setAdjustOpen(true); }}><Scale className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => {
-                    setWallets((arr) => arr.map((x) => x.id === w.id ? { ...x, archived: !x.archived } : x));
-                    toast.success(w.archived ? "Unarchived" : "Archived");
-                  }}>{w.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</Button>
-                  <Button size="icon" variant="ghost" onClick={() => {
-                    if (!confirm("Delete this wallet? Related transactions will remain.")) return;
-                    setWallets((arr) => arr.filter((x) => x.id !== w.id));
-                    toast.success("Deleted");
-                  }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => handleArchive(w.id, w.archived)}>{w.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</Button>
+                  <Button size="icon" variant="ghost" onClick={() => handleDelete(w.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </div>
               <div>
@@ -92,17 +123,13 @@ function Page() {
         )}
       </div>
 
-      <WalletDialog open={open} onOpenChange={setOpen} editing={editing} onSave={(w) => {
-        setWallets((arr) => editing ? arr.map((x) => x.id === w.id ? w : x) : [...arr, w]);
-        toast.success(editing ? "Wallet updated" : "Wallet added");
-        setOpen(false);
-      }} />
-      <AdjustBalanceDialog open={adjustOpen} onOpenChange={setAdjustOpen} wallet={adjustingWallet} state={state} setTransactions={setTransactions} />
+      <WalletDialog open={open} onOpenChange={setOpen} editing={editing} onSave={handleSave} isSaving={isSaving} />
+      <AdjustBalanceDialog open={adjustOpen} onOpenChange={setAdjustOpen} wallet={adjustingWallet} state={state} createTransaction={createTransaction} />
     </div>
   );
 }
 
-function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Wallet | null; onSave: (w: Wallet) => void }) {
+function WalletDialog({ open, onOpenChange, editing, onSave, isSaving }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Wallet | null; onSave: (w: Wallet) => Promise<void>; isSaving: boolean }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<WalletType>("Bank");
   const [initialBalance, setInitialBalance] = useState<number>(0);
@@ -120,7 +147,7 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
     }
   }, [open, editing]);
 
-  const submit = () => {
+  const submit = async () => {
     if (!name) return toast.error("Name required");
     const w: Wallet = {
       id: editing?.id ?? uid(),
@@ -128,7 +155,7 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
       archived: editing?.archived ?? false,
       createdAt: editing?.createdAt ?? new Date().toISOString(),
     };
-    onSave(w);
+    await onSave(w);
   };
 
   const isIDR = currency === "IDR";
@@ -168,23 +195,25 @@ function WalletDialog({ open, onOpenChange, editing, onSave }: { open: boolean; 
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit}>Save</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={submit} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function AdjustBalanceDialog({ open, onOpenChange, wallet, state, setTransactions }: {
+function AdjustBalanceDialog({ open, onOpenChange, wallet, state, createTransaction }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   wallet: Wallet | null;
   state: any;
-  setTransactions: (u: (items: any[]) => any[]) => void;
+  createTransaction: (transaction: Transaction) => Promise<void>;
 }) {
+  // Step 22C: Balance adjustment creates transactions. Transaction writes are now backed by Supabase.
   const [newBalance, setNewBalance] = useState<number>(0);
   const [note, setNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open || !wallet) return;
@@ -199,7 +228,7 @@ function AdjustBalanceDialog({ open, onOpenChange, wallet, state, setTransaction
   const isIDR = wallet.currency === "IDR";
   const difference = newBalance - currentBalance;
 
-  const submit = () => {
+  const submit = async () => {
     if (difference === 0) {
       toast.info("No balance change needed");
       onOpenChange(false);
@@ -210,44 +239,51 @@ function AdjustBalanceDialog({ open, onOpenChange, wallet, state, setTransaction
     const incomeCat = state.categories.find((c: any) => c.name === "Other Income" && c.kind === "income");
     const expenseCat = state.categories.find((c: any) => c.name === "Miscellaneous" && c.kind === "expense");
 
-    if (difference > 0) {
-      if (!incomeCat) {
-        toast.error("Income category 'Other Income' not found");
-        return;
+    setIsSaving(true);
+    try {
+      if (difference > 0) {
+        if (!incomeCat) {
+          toast.error("Income category 'Other Income' not found");
+          return;
+        }
+        const tx = {
+          id: uid(),
+          type: "income" as const,
+          amount: difference,
+          walletId: wallet.id,
+          categoryId: incomeCat.id,
+          date: now,
+          notes: note || "Balance adjustment",
+          createdAt: now,
+          updatedAt: now,
+        };
+        await createTransaction(tx);
+        toast.success(`Balance adjusted: +${formatIDR(difference)}`);
+      } else {
+        if (!expenseCat) {
+          toast.error("Expense category 'Miscellaneous' not found");
+          return;
+        }
+        const tx = {
+          id: uid(),
+          type: "expense" as const,
+          amount: Math.abs(difference),
+          walletId: wallet.id,
+          categoryId: expenseCat.id,
+          date: now,
+          notes: note || "Balance adjustment",
+          createdAt: now,
+          updatedAt: now,
+        };
+        await createTransaction(tx);
+        toast.success(`Balance adjusted: ${formatIDR(difference)}`);
       }
-      const tx = {
-        id: uid(),
-        type: "income" as const,
-        amount: difference,
-        walletId: wallet.id,
-        categoryId: incomeCat.id,
-        date: now,
-        notes: note || "Balance adjustment",
-        createdAt: now,
-        updatedAt: now,
-      };
-      setTransactions((arr) => [...arr, tx]);
-      toast.success(`Balance adjusted: +${formatIDR(difference)}`);
-    } else {
-      if (!expenseCat) {
-        toast.error("Expense category 'Miscellaneous' not found");
-        return;
-      }
-      const tx = {
-        id: uid(),
-        type: "expense" as const,
-        amount: Math.abs(difference),
-        walletId: wallet.id,
-        categoryId: expenseCat.id,
-        date: now,
-        notes: note || "Balance adjustment",
-        createdAt: now,
-        updatedAt: now,
-      };
-      setTransactions((arr) => [...arr, tx]);
-      toast.success(`Balance adjusted: ${formatIDR(difference)}`);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to adjust balance");
+    } finally {
+      setIsSaving(false);
     }
-    onOpenChange(false);
   };
 
   return (
